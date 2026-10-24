@@ -1,0 +1,90 @@
+name: Build, Validate & Deploy CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+# Grant GITHUB_TOKEN permissions required for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # ========================================================
+  # STAGE 1: Continuous Integration (Validation & Quality)
+  # ========================================================
+  validate:
+    name: 🔍 Validate & Lint Codebase
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 🧪 Execute Pre-flight Quality & Link Validation
+        run: |
+          node scripts/validate.js
+
+  # ========================================================
+  # STAGE 2: Continuous Deployment to GitHub Pages
+  # ========================================================
+  deploy-github-pages:
+    name: 🚀 Deploy to GitHub Pages
+    needs: validate
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: 📤 Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: 🌐 Deploy to GitHub Pages Edge
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ========================================================
+  # STAGE 3 (Optional): Netlify Deploy Template
+  # Uncomment if you want automatic deployment to Netlify
+  # ========================================================
+  # deploy-netlify:
+  #   name: 🚀 Deploy to Netlify
+  #   needs: validate
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: 📥 Checkout
+  #       uses: actions/checkout@v4
+  #     - name: 🚀 Deploy to Netlify
+  #       uses: nwtgck/actions-netlify@v3
+  #       with:
+  #         publish-dir: '.'
+  #         production-deploy: true
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         deploy-message: "Deploy from GitHub Actions: ${{ github.sha }}"
+  #         enable-commit-comment: true
+  #       env:
+  #         NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+  #         NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
