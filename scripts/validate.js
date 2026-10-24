@@ -101,3 +101,4 @@ if (errors.length === 0) {
   console.log('='.repeat(50));
   process.exit(1);
 }
+
